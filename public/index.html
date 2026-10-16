@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead CRM</title>
+<style>
+:root{
+  --bg:#f4f6fb;--card:#fff;--tx:#12151c;--mu:#6b7280;--bd:#e4e8f0;--ac:#2563eb;
+  --ok:#16a34a;--warn:#d97706;--bad:#dc2626;--wa:#128c7e;--meta:#0866ff;--web:#7c3aed;--man:#0f766e;
+  --shadow:0 8px 24px rgba(18,21,28,.06)
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1218;--card:#181c25;--tx:#eef1f6;--mu:#9aa3b2;--bd:#2a3140;--ac:#6ea8ff;
+    --ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--wa:#34d399;--meta:#60a5fa;--web:#c4b5fd;--man:#5eead4;
+    --shadow:none;color-scheme:dark}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+.w{max-width:1080px;margin:0 auto;padding:18px 16px 40px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;position:relative;flex-wrap:wrap}
+h1{font-size:22px;margin:0;letter-spacing:-.02em}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,select,input,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 12px}
+button{cursor:pointer}
+button.primary{background:var(--ac);color:#fff;border-color:transparent}
+input{flex:1;min-width:140px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.st{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;cursor:pointer;box-shadow:var(--shadow)}
+.st:hover,.st.on{border-color:var(--ac)}
+.st b{display:block;font-size:24px}
+.st span{color:var(--mu);font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;cursor:pointer;align-items:center;box-shadow:var(--shadow)}
+.row:hover{border-color:var(--ac)}
+.row small{color:var(--mu)}
+.tag{font-size:11px;border:1px solid var(--bd);border-radius:99px;padding:2px 8px;white-space:nowrap}
+.tag.s-Meta{color:var(--meta);border-color:currentColor}
+.tag.s-WhatsApp{color:var(--wa);border-color:currentColor}
+.tag.s-Website{color:var(--web);border-color:currentColor}
+.tag.s-Manual{color:var(--man);border-color:currentColor}
+.tag.t-New{color:var(--ac)}.tag.t-Won{color:var(--ok)}.tag.t-Lost{color:var(--bad)}.tag.t-Follow-up,.tag.t-Qualified{color:var(--warn)}
+.id{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--ac)}
+.bell{position:relative}.bell i{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;font-style:normal;font-size:11px;border-radius:99px;padding:0 6px}
+#np{display:none;position:absolute;right:0;top:48px;width:min(340px,92vw);max-height:60vh;overflow:auto;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px;z-index:20;box-shadow:var(--shadow)}
+#np div{padding:8px;border-bottom:1px solid var(--bd);font-size:13px}
+#dr{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:flex-end;justify-content:center}
+#dc{background:var(--card);width:min(580px,100%);max-height:90vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px}
+#dc label{display:block;color:var(--mu);font-size:12px;margin:10px 0 3px}
+#dc input,#dc select,#dc textarea{width:100%}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.links a{color:var(--ac);text-decoration:none;font-size:13px}
+.log{font-size:12px;color:var(--mu);margin-top:10px}
+#ts{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--ac);color:#fff;padding:10px 16px;border-radius:10px;display:none;z-index:40;max-width:90vw}
+.empty{color:var(--mu);text-align:center;padding:40px 12px}
+.formgrid{display:grid;gap:8px}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="top">
+    <h1>Lead CRM</h1>
+    <div class="actions">
+      <button class="primary" onclick="add()">+ Add lead</button>
+      <a href="/api/leads.csv"><button>Export CSV</button></a>
+      <button class="bell" onclick="tn()">🔔<i id="nb" hidden>0</i></button>
+    </div>
+    <div id="np"></div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="bar">
+    <input id="q" placeholder="Search name, phone, email or ID" oninput="draw()">
+    <select id="fs" onchange="draw()"><option value="">All sources</option></select>
+    <select id="ft" onchange="draw()"><option value="">All statuses</option></select>
+  </div>
+  <div class="list" id="ls"></div>
+</div>
+<div id="dr" onclick="if(event.target===this)closeDr()"><div id="dc"></div></div>
+<div id="ts"></div>
+<script>
+var SRC=['Meta Ads','WhatsApp','Website','Manual'];
+var STS=['New','Contacted','Qualified','Follow-up','Won','Lost'];
+var L=[],N=[],unread=0,statFilter='';
+
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML}
+function fd(t){return new Date(t).toLocaleString([], {dateStyle:'medium',timeStyle:'short'})}
+function toast(m){var t=document.getElementById('ts');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},3500)}
+function notify(m){N.unshift({m:m,t:new Date()});unread++;bell();toast(m);try{if(Notification.permission==='granted')new Notification('Lead CRM',{body:m})}catch(e){}}
+function bell(){var b=document.getElementById('nb');b.hidden=!unread;b.textContent=unread}
+function tn(){var p=document.getElementById('np');if(p.style.display==='block'){p.style.display='none';return}
+  unread=0;bell();p.innerHTML=N.length?N.map(function(n){return '<div>'+esc(n.m)+'<br><small>'+fd(n.t)+'</small></div>'}).join(''):'<div>No alerts yet</div>';p.style.display='block';
+  try{if(Notification.permission==='default')Notification.requestPermission()}catch(e){}}
+function closeDr(){document.getElementById('dr').style.display='none'}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDr()});
+
+async function load(){try{L=await(await fetch('/api/leads')).json();draw()}catch(e){toast('Could not load leads')}}
+function sc(s){return 's-'+s.split(' ')[0]}
+function setStat(s){statFilter=statFilter===s?'':s;if(s)document.getElementById('ft').value=statFilter==='Total'?'':statFilter;draw()}
+function draw(){
+  var q=document.getElementById('q').value.toLowerCase(),fs=document.getElementById('fs').value,ft=document.getElementById('ft').value;
+  var f=L.filter(function(l){return(!fs||l.source===fs)&&(!ft||l.status===ft)&&(!q||(l.name+l.phone+l.email+l.uid).toLowerCase().indexOf(q)>-1)});
+  var c=function(s){return L.filter(function(l){return l.status===s}).length};
+  var tiles=[{k:'Total',n:L.length}].concat(['New','Contacted','Qualified','Won'].map(function(s){return {k:s,n:c(s)}}));
+  document.getElementById('stats').innerHTML=tiles.map(function(t){return '<div class="st'+(statFilter===t.k?' on':'')+'" onclick="setStat(\''+t.k+'\')"><b>'+t.n+'</b><span>'+t.k+'</span></div>'}).join('');
+  document.getElementById('ls').innerHTML=f.length?f.map(function(l){
+    return '<div class="row" onclick="op('+l.id+')"><div><span class="id">'+l.uid+'</span> <b>'+esc(l.name)+'</b><br><small>'+esc(l.phone||l.email)+' · '+fd(l.created)+'</small></div><div style="text-align:right"><span class="tag '+sc(l.source)+'">'+esc(l.source)+'</span> <span class="tag t-'+esc(l.status)+'">'+esc(l.status)+'</span></div></div>';
+  }).join(''):'<div class="empty">No leads yet. They appear from Meta, WhatsApp, your website, or Add lead.</div>';
+}
+function opts(a,v){return a.map(function(x){return '<option'+(x===v?' selected':'')+'>'+x+'</option>'}).join('')}
+function tel(p){return String(p||'').replace(/[^\d+]/g,'')}
+function op(id){
+  var l=L.find(function(x){return x.id===id});if(!l)return;
+  var phone=tel(l.phone);
+  document.getElementById('dc').innerHTML=
+    '<div class="id">'+l.uid+'</div><h2 style="margin:4px 0">'+esc(l.name)+'</h2><span class="tag '+sc(l.source)+'">'+esc(l.source)+'</span>'+
+    '<div class="links">'+
+      (phone?'<a href="tel:'+esc(phone)+'">Call</a><a href="https://wa.me/'+esc(phone.replace(/\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+      (l.email?'<a href="mailto:'+esc(l.email)+'">Email</a>':'')+
+    '</div>'+
+    '<label>Name</label><input value="'+esc(l.name)+'" onchange="pt('+id+',{name:this.value},1)">'+
+    '<label>Status</label><select onchange="pt('+id+',{status:this.value})">'+opts(STS,l.status)+'</select>'+
+    '<label>Phone</label><input value="'+esc(l.phone)+'" onchange="pt('+id+',{phone:this.value},1)">'+
+    '<label>Email</label><input value="'+esc(l.email)+'" onchange="pt('+id+',{email:this.value},1)">'+
+    '<label>Notes</label><textarea rows="3" onchange="pt('+id+',{note:this.value},1)">'+esc(l.note)+'</textarea>'+
+    '<div class="log"><b>Activity</b><br>'+(l.log||[]).map(function(g){return fd(g.t)+' — '+esc(g.m)}).join('<br>')+'</div>'+
+    '<p><button onclick="closeDr()">Close</button></p>';
+  document.getElementById('dr').style.display='flex';
+}
+function add(){
+  document.getElementById('dc').innerHTML='<h2 style="margin:0 0 8px">Add lead</h2><form class="formgrid" onsubmit="return saveNew(event)">'+
+    '<input name="name" placeholder="Name" required>'+
+    '<input name="phone" placeholder="Phone">'+
+    '<input name="email" type="email" placeholder="Email">'+
+    '<select name="source">'+opts(SRC,'Manual')+'</select>'+
+    '<textarea name="note" rows="3" placeholder="Notes"></textarea>'+
+    '<button class="primary" type="submit">Save</button></form><p><button type="button" onclick="closeDr()">Cancel</button></p>';
+  document.getElementById('dr').style.display='flex';
+}
+async function saveNew(e){
+  e.preventDefault();
+  var d=Object.fromEntries(new FormData(e.target));
+  if(!d.phone&&!d.email){toast('Phone or email required');return false}
+  await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  closeDr();await load();return false;
+}
+async function pt(id,b,quiet){
+  await fetch('/api/leads/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  await load();if(!quiet)op(id);
+}
+document.getElementById('fs').innerHTML+=SRC.map(function(s){return '<option>'+s+'</option>'}).join('');
+document.getElementById('ft').innerHTML+=STS.map(function(s){return '<option>'+s+'</option>'}).join('');
+var es=new EventSource('/api/stream');es.onmessage=function(e){var d=JSON.parse(e.data);if(d.msg)notify(d.msg);load()};
+load();
+</script>
+</body>
+</html>

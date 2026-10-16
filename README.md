@@ -1,18 +1,34 @@
 # Lead CRM
 
-Collects leads from Meta Lead Ads, WhatsApp and your website into one dashboard with unique IDs (LD-YYMMDD-0001), statuses, an activity log and live alerts (dashboard + optional Telegram on your phone).
+Collects leads from Meta Lead Ads, WhatsApp, your website, and manual entry into one dashboard. Each lead gets an ID like `LD-YYMMDD-0001`, a status, an activity log, and live alerts (dashboard plus optional Telegram).
 
-## 1. Deploy
-1. Put this folder on GitHub, then create a Web Service on Render (or Railway) from it. Build: `npm install`, Start: `npm start`.
-2. Add the variables from `.env.example` in the host's Environment settings.
-3. Add a persistent disk and set `DB_PATH` to a path on it (otherwise the database resets on redeploy).
-4. Open your URL. Browser asks for a password: any username, password = ADMIN_PASSWORD.
+## What’s new
+- Add a lead from the dashboard
+- Export CSV
+- Call / WhatsApp / Email links on a lead
+- Clickable status tiles to filter
+- Public `/health` check for hosting
+- Dashboard files live in `public/` so the UI actually loads on deploy
+
+## 1. Deploy on Render
+1. Push this repo to GitHub.
+2. [Render](https://dashboard.render.com) → **New** → **Blueprint** and select the repo (uses `render.yaml`), **or** **New Web Service** and connect the repo.
+3. If you create the service manually:
+   - Build: `npm install`
+   - Start: `npm start`
+   - Instance: Starter (needed for a persistent disk)
+4. Add a **persistent disk**, mount `/var/data`, and set `DB_PATH=/var/data/crm.db`. Without a disk the SQLite file is wiped on every deploy.
+5. Set environment variables from `.env.example`. Render sets `PORT` for you. Copy `ADMIN_PASSWORD` from Render after it generates one (or set your own).
+6. Open the service URL. Browser login: any username, password = `ADMIN_PASSWORD`.
+
+### Railway
+New project from the GitHub repo, start command `npm start`, add the same env vars. Attach a volume and point `DB_PATH` at a file on that volume.
 
 ## 2. Meta (Lead Ads + WhatsApp)
-1. developers.facebook.com > Create App (Business). Copy App Secret into META_APP_SECRET.
-2. Webhooks: callback URL `https://YOUR-URL/webhooks/meta`, verify token = META_VERIFY_TOKEN.
+1. [developers.facebook.com](https://developers.facebook.com) → Create App (Business). Copy App Secret into `META_APP_SECRET`.
+2. Webhooks: callback URL `https://YOUR-URL/webhooks/meta`, verify token = `META_VERIFY_TOKEN`.
 3. Subscribe the Page object to `leadgen` and the WhatsApp Business Account object to `messages`.
-4. Generate a Page access token with `leads_retrieval`, `pages_manage_metadata`, `pages_show_list`, then put it in META_PAGE_TOKEN.
+4. Generate a Page access token with `leads_retrieval`, `pages_manage_metadata`, `pages_show_list`, then put it in `META_PAGE_TOKEN`.
 5. Test with Meta's Lead Ads Testing Tool and by messaging your WhatsApp API number.
 
 ## 3. Website form
@@ -28,10 +44,19 @@ document.getElementById('lead').onsubmit=async e=>{e.preventDefault();
  body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});e.target.reset();alert('Thanks!')}
 </script>
 ```
+Set `WEBSITE_ORIGIN` to your site origin (for example `https://yoursite.com`) so the browser allows the POST.
 
 ## 4. Phone alerts (optional)
-Message @BotFather on Telegram to create a bot, set TELEGRAM_TOKEN, send the bot a message, then get your chat id from `https://api.telegram.org/bot<TOKEN>/getUpdates` and set TELEGRAM_CHAT_ID.
+Message [@BotFather](https://t.me/BotFather) to create a bot, set `TELEGRAM_TOKEN`, send the bot a message, then get your chat id from `https://api.telegram.org/bot<TOKEN>/getUpdates` and set `TELEGRAM_CHAT_ID`.
 
 ## Local test
-`npm install && cp .env.example .env` (edit it) `&& npm start`, then open http://localhost:3000
-Fake website lead: `curl -X POST localhost:3000/api/leads/website -H "Content-Type: application/json" -d '{"name":"Test","phone":"+923001234567"}'`
+```
+npm install
+copy .env.example .env
+```
+Edit `.env`, then `npm start` and open http://localhost:3000
+
+Fake website lead:
+```
+curl -X POST localhost:3000/api/leads/website -H "Content-Type: application/json" -d "{\"name\":\"Test\",\"phone\":\"+923001234567\"}"
+```
